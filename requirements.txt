@@ -1,0 +1,7 @@
+streamlit
+pandas
+plotly
+python-dotenv
+geopy
+pymongo
+dnspython
