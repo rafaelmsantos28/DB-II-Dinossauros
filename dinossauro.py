@@ -8,7 +8,6 @@ from pymongo import MongoClient
 from bson import ObjectId
 from geopy.geocoders import Nominatim
 
-# Configuração da página
 st.set_page_config(
     page_title="Dinossauros NoSQL",
     page_icon="🦖",
@@ -24,7 +23,7 @@ st.markdown("Dashboard interativo sobre dinossauros utilizando dados de um banco
 # ==============================================================================
 @st.cache_resource
 def init_connection():
-    load_dotenv(dotenv_path=".venv/.env") # Sugiro deixar apenas ".env" se estiver na raiz
+    load_dotenv(dotenv_path=".venv/.env")
     
     uri = os.getenv('MONGO_URI')
     db_name = os.getenv('DB_NAME')
@@ -35,7 +34,6 @@ def init_connection():
 
     try:
         client = MongoClient(uri)
-        # Teste rápido de conexão
         client.admin.command('ping')
         return client[db_name]
     except Exception as e:
@@ -49,7 +47,6 @@ db = init_connection()
 # ==============================================================================
 
 def get_dinosaur_names():
-    """Retorna lista de dicionários com ID e Nome Popular para o seletor."""
     if db is None: return []
     
     # Busca apenas os campos necessários e converte _id para string
@@ -64,10 +61,6 @@ def get_dinosaur_names():
     return lista_dinos
 
 def get_dinosaur_by_id(dino_id_str):
-    """
-    Executa um Aggregation Pipeline para buscar o dinossauro e fazer 
-    os 'joins' (lookups) com todas as coleções relacionadas.
-    """
     if db is None: return None
 
     try:
@@ -77,10 +70,8 @@ def get_dinosaur_by_id(dino_id_str):
         return None
 
     pipeline = [
-        # 1. Filtra o dinossauro selecionado
         { "$match": { "_id": oid } },
 
-        # 2. Lookup para pegar dados da Dieta
         {
             "$lookup": {
                 "from": "tipos_alimentacao",
@@ -91,7 +82,6 @@ def get_dinosaur_by_id(dino_id_str):
         },
         { "$unwind": { "path": "$dieta_info", "preserveNullAndEmptyArrays": True } },
 
-        # 3. Lookup para pegar dados do Período
         {
             "$lookup": {
                 "from": "periodos_geologicos",
@@ -102,7 +92,6 @@ def get_dinosaur_by_id(dino_id_str):
         },
         { "$unwind": { "path": "$periodo_info", "preserveNullAndEmptyArrays": True } },
 
-        # 4. Lookup reverso complexo: Buscar Fósseis deste dinossauro
         {
             "$lookup": {
                 "from": "fosseis",
@@ -110,7 +99,6 @@ def get_dinosaur_by_id(dino_id_str):
                 "pipeline": [
                     { "$match": { "$expr": { "$eq": ["$id_dinossauro", "$$dinoId"] } } },
                     
-                    # Dentro de cada fóssil, buscar Localização
                     {
                         "$lookup": {
                             "from": "localizacoes",
@@ -121,7 +109,6 @@ def get_dinosaur_by_id(dino_id_str):
                     },
                     { "$unwind": { "path": "$loc", "preserveNullAndEmptyArrays": True } },
 
-                    # Dentro de cada fóssil, buscar Descobridor
                     {
                         "$lookup": {
                             "from": "descobridores",
@@ -132,7 +119,6 @@ def get_dinosaur_by_id(dino_id_str):
                     },
                     { "$unwind": { "path": "$desc", "preserveNullAndEmptyArrays": True } },
 
-                    # Dentro de cada fóssil, buscar Museu
                     {
                         "$lookup": {
                             "from": "museus",
@@ -143,7 +129,6 @@ def get_dinosaur_by_id(dino_id_str):
                     },
                     { "$unwind": { "path": "$mus", "preserveNullAndEmptyArrays": True } },
 
-                    # Dentro de cada fóssil, buscar Ossos (Lookup Reverso)
                     {
                         "$lookup": {
                             "from": "ossos",
@@ -166,7 +151,7 @@ def get_dinosaur_by_id(dino_id_str):
     data = resultado[0]
 
     # Mapeamento do JSON do Mongo para a estrutura exata que o Streamlit espera
-    # para não precisar reescrever a lógica da interface gráfica.
+
     dinosaur_dict = {
         "id": str(data["_id"]),
         "nome_popular": data.get("nome_popular"),
@@ -187,7 +172,7 @@ def get_dinosaur_by_id(dino_id_str):
         "fossil": []
     }
 
-    # Processar a lista de fósseis vinda do lookup
+    # Processa a lista de fósseis vinda do lookup
     for f in data.get("lista_fosseis", []):
         fossil_dict = {
             "codigo": f.get("codigo"),
@@ -212,7 +197,7 @@ def get_dinosaur_by_id(dino_id_str):
     return dinosaur_dict
 
 # ==============================================================================
-# LÓGICA DA INTERFACE (MANTIDA QUASE IGUAL, SÓ ADAPTADA PARA DICT)
+# LÓGICA DA INTERFACE 
 # ==============================================================================
 
 def create_dinosaur_selector():
