@@ -7,6 +7,7 @@ import os
 from pymongo import MongoClient
 from bson import ObjectId
 from geopy.geocoders import Nominatim
+import certifi
 
 st.set_page_config(
     page_title="Dinossauros NoSQL",
@@ -23,7 +24,7 @@ st.markdown("Dashboard interativo sobre dinossauros utilizando dados de um banco
 # ==============================================================================
 @st.cache_resource
 def init_connection():
-    load_dotenv(dotenv_path=".venv/.env")
+    load_dotenv(dotenv_path=".env")
     
     uri = os.getenv('MONGO_URI')
     db_name = os.getenv('DB_NAME')
@@ -33,7 +34,12 @@ def init_connection():
         return None
 
     try:
-        client = MongoClient(uri)
+        # --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
+        # O tlsCAFile força o uso dos certificados atualizados do pacote certifi
+        ca = certifi.where()
+        client = MongoClient(uri, tlsCAFile=ca)
+        # ------------------------------------
+        
         client.admin.command('ping')
         return client[db_name]
     except Exception as e:
